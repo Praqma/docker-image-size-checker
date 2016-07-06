@@ -1,1 +1,1 @@
-docker run --rm -t praqma/groovy:snapshot groovy -v
+docker run --rm -t praqma/image-size-checker:snapshot groovy -v
