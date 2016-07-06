@@ -7,7 +7,7 @@ import jenkins.model.*;
 import static groovy.io.FileType.FILES;
 
 int IMG_MAX_SIZE = 1000;
-boolean isError = false;
+//boolean isError = false;
 def workspace = "/home/jenkins/site/";
 //assert imgExtentions.any { it == ".png" }
 //println workspace.dump();
@@ -17,15 +17,16 @@ new File(workspace).eachFileRecurse(FILES) {
     //println it;
     def img = ImageIO.read(it);
     if( img.getWidth()>IMG_MAX_SIZE || img.getHeight()>IMG_MAX_SIZE ){
-      println "ERROR:";
+      println "";
+      println "Error: ";
       println "Image ${it}";
       println "is ${ img.getWidth() }x${ img.getWidth() } px. That's too much.";
       println "Please, scale it down. It shouldn't be bigger then ${ IMG_MAX_SIZE }x${ IMG_MAX_SIZE } pixels.";
-      isError = true;
+//      isError = true;
     }
   }
 }
-if (isError == true){
-  System.exit(1);
-}
-System.exit(0);
+//if (isError == true){
+//  System.exit(1);
+//}
+//System.exit(0);
