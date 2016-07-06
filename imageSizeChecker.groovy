@@ -6,7 +6,7 @@ import jenkins.*;
 import jenkins.model.*;
 import static groovy.io.FileType.FILES;
 
-return 1;
+exit 1;
 
 int IMG_MAX_SIZE = 1000;
 boolean isError = false;
