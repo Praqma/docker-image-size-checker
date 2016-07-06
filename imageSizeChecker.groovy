@@ -6,16 +6,12 @@ import jenkins.*;
 import jenkins.model.*;
 import static groovy.io.FileType.FILES;
 
-println "image check works";
-return 0;
-
 int IMG_MAX_SIZE = 1000;
 boolean isError = false;
-
-def workspace = Jenkins.instance.getJob(this.binding.build.project.name).lastBuild.workspace;
+def workspace = "/home/jenkins/site/";
 //assert imgExtentions.any { it == ".png" }
 //println workspace.dump();
-new File(workspace.remote).eachFileRecurse(FILES) {
+new File(workspace).eachFileRecurse(FILES) {
   //imgExtentions
   if( it.name ==~ /([^\s]+(\.(?i)(jpg|png|gif|bmp))$)/  ){
     //println it;
