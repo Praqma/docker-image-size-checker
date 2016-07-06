@@ -6,8 +6,6 @@ import jenkins.*;
 import jenkins.model.*;
 import static groovy.io.FileType.FILES;
 
-System.exit(0);
-
 int IMG_MAX_SIZE = 1000;
 boolean isError = false;
 def workspace = "/home/jenkins/site/";
@@ -28,6 +26,6 @@ new File(workspace).eachFileRecurse(FILES) {
   }
 }
 if (isError == true){
-  return 1;
+  System.exit(1);
 }
-return 0;
+System.exit(0);
