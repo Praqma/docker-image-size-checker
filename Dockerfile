@@ -42,7 +42,6 @@ RUN         apt-get update -qq -y && \
 
 # Image size checker
 COPY imageSizeChecker.groovy /home/jenkins/
-COPY test.sh /home/jenkins/
 
 
 CMD ["/usr/sbin/sshd", "-D"]
