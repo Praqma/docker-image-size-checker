@@ -6,7 +6,7 @@ import jenkins.*;
 import jenkins.model.*;
 import static groovy.io.FileType.FILES;
 
-int IMG_MAX_SIZE = 10000;
+int IMG_MAX_SIZE = 2000;
 //boolean isError = false;
 def workspace = "/home/jenkins/site/";
 //assert imgExtentions.any { it == ".png" }
