@@ -17,7 +17,7 @@ new File(workspace).eachFileRecurse(FILES) {
     //println it;
     def img = ImageIO.read(it);
     if( img.getWidth()>IMG_MAX_SIZE || img.getHeight()>IMG_MAX_SIZE ){
-      println "Error: Too bit image ${it}. It's ${ img.getWidth() }x${ img.getWidth() } px. Please, scale to fit ${ IMG_MAX_SIZE }x${ IMG_MAX_SIZE }.";
+      println "Error: image ${it} size ${ img.getWidth() }x${ img.getWidth() } exceeds limit ${ IMG_MAX_SIZE }x${ IMG_MAX_SIZE }.";
 //      isError = true;
     }
   }
