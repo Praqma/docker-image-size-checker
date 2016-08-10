@@ -14,7 +14,7 @@ def workspace = "/home/jenkins/site/";
 new File(workspace).eachFileRecurse(FILES) {
   //imgExtentions
   if( it.name ==~ /([^\s]+(\.(?i)(jpg|png|gif|bmp))$)/  ){
-    //println it;
+    println it;
     def img = ImageIO.read(it);
     if( img.getWidth()>IMG_MAX_SIZE || img.getHeight()>IMG_MAX_SIZE ){
       println "Error: image ${it} size ${ img.getWidth() }x${ img.getWidth() } exceeds limit ${ IMG_MAX_SIZE }x${ IMG_MAX_SIZE }.";
