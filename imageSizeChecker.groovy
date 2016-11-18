@@ -21,5 +21,6 @@ new File(workspace).eachFileRecurse(FILES) {
       println "Error: image ${it} size ${ img.getWidth() }x${ img.getWidth() } exceeds limit ${ IMG_MAX_SIZE }x${ IMG_MAX_SIZE }.";
     } else {
       println "Image is within bounds"
+    }
   }
 }
