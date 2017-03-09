@@ -3,9 +3,8 @@
     @Grab(group='org.apache.commons', module='commons-imaging', version='1.0-R1534292')
 )
 
-import java.awt.image.BufferedImage
+import groovy.util.CliBuilder
 import java.io.File
-import javax.activation.MimetypesFileTypeMap
 import javax.imageio.ImageIO
 import jenkins.*
 import jenkins.model.*
@@ -32,7 +31,7 @@ public class SizeWarning extends WebsiteWarning {
 
   @Override
   public String toString() {
-    "[ImageChecker] (Warning) (Filesize) File ${associatedPath}. Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
+    "[ImageChecker] (Warning) File ${associatedPath}. Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
   }
 }
 
@@ -57,9 +56,10 @@ public class DpiWarning extends WebsiteWarning {
     this.minDpi = minDpi
     this.recordedDpi = recordedDpi
   }
-  
+
+  @Override
   public String toString() {
-    "[ImageChecker] (Warning) (Dpi) File ${associatedPath}. Too low DPI. Is $recordedDpi should be equal or greater than $minDpi"
+    "[ImageChecker] (Warning) File ${associatedPath}. Too low DPI. Is $recordedDpi should be equal or greater than $minDpi"
   }
 }
 
@@ -75,23 +75,20 @@ class DimensionWarning extends WebsiteWarning {
   }
 
   public String toString() {
-    "[ImageChecker] (Warning) (Resolution) File ${associatedPath}. Max width is ${maxy}px was ${y}px. Max height is ${maxx}px was ${x}px"
+    "[ImageChecker] (Warning) File ${associatedPath}. Max width is ${maxy}px was ${y}px. Max height is ${maxx}px was ${x}px"
   }    
 } 
 
 class WarningsList extends ArrayList<WebsiteWarning> {
 
-  def imageMaxSize,maxImageWidth,maxImageHeight,minDPI
-  def scanBounds = true
-  def scanSize = false
-  def scanDPI = false
+  int imageMaxSize
+  int maxImageWidth
+  int maxImageHeight
+  int minDPI
 
-  public WarningsList(def imageMaxSize = 6, def maxImageWidth = 2000, def maxImageHeight = 2000, def minDPI = 100) {
-    this.maxImageHeight = maxImageHeight
-    this.maxImageWidth = maxImageWidth 
-    this.imageMaxSize = imageMaxSize
-    this.minDPI = minDPI
-  }
+  boolean scanBounds = true
+  boolean scanSize = false
+  boolean scanDPI = false
 
   def setScanDPI(def scanDPI = true) {
     this.scanDPI = scanDPI
@@ -130,14 +127,15 @@ class WarningsList extends ArrayList<WebsiteWarning> {
           if (this.scanDPI) {
             def metadata = Imaging.getImageInfo(it)
             if(metadata != null && metadata.getPhysicalWidthDpi() != -1 && metadata.getPhysicalHeightDpi() != -1) {
-              if(minDPI >= metadata.getPhysicalWidthDpi()) {
+              if(minDPI > metadata.getPhysicalWidthDpi()) {
                 this.add(new DpiWarning(minDPI, metadata.getPhysicalWidthDpi(), it))
               }
             }
           }
           
         } catch (Exception ex) {
-          this.add(new UnreadableWarning(ex, it)) 
+          ex.printStackTrace(System.out)
+          this.add(new UnreadableWarning(ex, it))
         } finally {
           println "[ImageChecker] Checked $it"
         }
@@ -152,22 +150,58 @@ class WarningsList extends ArrayList<WebsiteWarning> {
   }
 }
 
-def scanDir = System.getenv("SCAN_DIR") ?: "/home/jenkins/site/"
-def scanBounds = System.getenv("SCAN_BOUNDS") ?: false 
-def scanSize = System.getenv("SCAN_SIZE") ?: true
-def scanDPI = System.getenv("SCAN_DPI") ?: false
-def fail = System.getenv("SCAN_FAIL") ?: false
+def cli = new CliBuilder(usage: 'imageSizeChecker [options]', header:'Options:')
+cli.help('print help message')
+cli.target(args:1, argName: 'targetFolder', 'Root folder to look for images')
+cli.size(args:1, argName: 'maxsize', 'Check file size of images in kb. Default: 500')
+cli.dpi(args:1, argName: 'mindpi', 'Check dpi of images. Default 0')
+cli.dim(args:2, valueSeparator:'x', argName: 'maxdim', 'Check dimensions of image "widthxheight" for example 1920x1080. Default: 2000x2000')
+cli.fail('fail on warnings')
+def options = cli.parse(args)
 
-println "Scan bounds: $scanBounds"
-println "Scan size: $scanSize"
-println "Scan dir: $scanDir"
-println "Scan DPI: $scanDPI" 
-println "Fail on warnings $fail" 
+if(options.help) {
+  cli.usage()
+} else {
+  def scanDir
+  def scanBounds
+  def scanSize
+  def scanDPI
+  def warnings
 
-def warnings = new WarningsList().setScanBounds(scanBounds).setScanSize(scanSize).setScanDPI(scanDPI).scan(scanDir)
-println warnings.toString()  
+  try {
 
-if(fail) {
-  //We do NOT want to to use System.exit(...) because it can be used to shut down a VM....for example a Jenkins VM or slave service 
-  throw new RuntimeException("Warnings detected. We found ${warnings.size()} warning(s)")
+    scanDir = options.target ?: "/home/jenkins/site/"
+
+    scanBounds = options.dims ?: (System.getenv("SCAN_BOUNDS").split("x") ?: [2000,2000])
+    scanSize = options.size ?: System.getenv("SCAN_SIZE") ?: 500
+    scanDPI =  options.dpi ?: System.getenv("SCAN_DPI") ?: 0
+
+    println "===Options==="
+    println "Scan bounds: $scanBounds"
+    println "Scan size: $scanSize"
+    println "Scan dir: $scanDir"
+    println "Scan DPI: $scanDPI"
+    println "Fail on warnings ${options.fail}"
+    println "=============\n"
+
+    assert scanBounds != null && scanBounds[0] as boolean && scanBounds[1] as boolean : "Image dimension must be specified with the -dim option"
+
+    warnings = new WarningsList(imageMaxSize: scanSize as int, maxImageWidth: scanBounds[0] as int, maxImageHeight: scanBounds[1] as int, minDPI: scanDPI as int)
+    warnings.
+            setScanBounds(scanBounds as boolean).
+            setScanSize(options.size as boolean).
+            setScanDPI(options.dpi as boolean).scan(scanDir)
+
+    if(options.fail) {
+      //We do NOT want to to use System.exit(...) because it can be used to shut down a VM....for example a Jenkins VM or slave service
+      throw new RuntimeException("Warnings detected. We found ${warnings.size()} warning(s)")
+    }
+  } catch (FileNotFoundException ex) {
+    println "The file $scanDir cannot be found"
+  } finally {
+    if(warnings) {
+      println warnings.toString()
+    }
+  }
 }
+
