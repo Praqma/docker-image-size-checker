@@ -3,19 +3,20 @@
     @Grab(group='org.apache.commons', module='commons-imaging', version='1.0-R1534292')
 )
 
-import groovy.util.CliBuilder
-import java.io.File
 import javax.imageio.ImageIO
-import jenkins.*
-import jenkins.model.*
 import static groovy.io.FileType.FILES
-
 import org.apache.commons.imaging.*
 
 public class WebsiteWarning {
   def associatedPath
+  def columnPadding = 16
+
   public WebsiteWarning(def associatedPath) {
     this.associatedPath = associatedPath
+  }
+
+  public String toString() {
+    "[ImageChecker] WARNING "
   }
 }
 
@@ -31,7 +32,11 @@ public class SizeWarning extends WebsiteWarning {
 
   @Override
   public String toString() {
-    "[ImageChecker] (Warning) File ${associatedPath}. Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
+    def label = "Size".padRight(columnPadding);
+    def result = "${sizeRecorded} kB".padLeft(columnPadding)
+    def max = "max(${maxImageSize} kB)".padLeft(columnPadding)
+    def spacing = "".padLeft(columnPadding)
+    return "${super.toString()} $label ${result} $max$spacing $associatedPath" //Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
   }
 }
 
@@ -59,7 +64,11 @@ public class DpiWarning extends WebsiteWarning {
 
   @Override
   public String toString() {
-    "[ImageChecker] (Warning) File ${associatedPath}. Too low DPI. Is $recordedDpi should be equal or greater than $minDpi"
+    def label = "DPI".padRight(columnPadding);
+    def result = "${recordedDpi}".padLeft(columnPadding)
+    def max = "min(${minDpi})".padLeft(columnPadding)
+    def spacing = "".padLeft(columnPadding)
+    return "${super.toString()} $label ${result} $max$spacing $associatedPath" //Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
   }
 }
 
@@ -74,10 +83,15 @@ class DimensionWarning extends WebsiteWarning {
     this.maxx = maxx
   }
 
+  @Override
   public String toString() {
-    "[ImageChecker] (Warning) File ${associatedPath}. Max width is ${maxy}px was ${y}px. Max height is ${maxx}px was ${x}px"
-  }    
-} 
+    def label = "Dimension".padRight(columnPadding);
+    def result = "${x}x${y.toString()}".padLeft(columnPadding)
+    def max = "max(${maxx}x${maxy})".padLeft(columnPadding)
+    def spacing = "".padLeft(columnPadding)
+    return "${super.toString()} $label ${result} $max$spacing $associatedPath" //Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
+  }
+}
 
 class WarningsList extends ArrayList<WebsiteWarning> {
 
@@ -105,39 +119,58 @@ class WarningsList extends ArrayList<WebsiteWarning> {
     return this
   }
 
+  def scanResolution(file) {
+    if (this.scanBounds) {
+      def img = ImageIO.read(file);
+      if (img == null) {
+        println "[ImageChecker] (Warning) Unable to check $it.name"
+      } else if ( img.getWidth() > maxImageWidth || img.getHeight() > maxImageHeight ){
+        def warn = new DimensionWarning(img.getWidth(), img.getHeight(), maxImageWidth, maxImageHeight, file);
+        this.add(warn)
+        return warn
+      }
+    }
+    return null
+  }
+
+  def scanDPI(file) {
+    if (this.scanDPI) {
+      def metadata = Imaging.getImageInfo(file)
+      if(metadata != null && metadata.getPhysicalWidthDpi() != -1 && metadata.getPhysicalHeightDpi() != -1) {
+        if(minDPI > metadata.getPhysicalWidthDpi()) {
+          def warn = new DpiWarning(minDPI, metadata.getPhysicalWidthDpi(), file);
+          this.add(warn)
+          return warn
+        }
+      }
+    }
+    return null
+  }
+
+  def scanSize(file) {
+    if (this.scanSize) {
+      if(((int)file.length() / 1000) > imageMaxSize) {
+        def warn = new SizeWarning(file, imageMaxSize, (int)(file.length()/1024))
+        this.add(warn)
+        return warn
+      }
+    }
+    return null
+  }
+
   def scan(def rootPath) {
     new File(rootPath).eachFileRecurse(FILES) {
       if( it.name ==~ /([^\s]+(\.(?i)(jpg|png|gif|bmp))$)/ ) {
-        try {          
-          if (this.scanBounds) {
-            def img = ImageIO.read(it);
-            if (img == null) {
-              prinln "[ImageChecker] (Warning) Unable to check $it.name"
-            } else if ( img.getWidth() > maxImageWidth || img.getHeight() > maxImageHeight ){
-              this.add(new DimensionWarning(img.getWidth(), img.getHeight(), maxImageWidth, maxImageHeight, it))
-            }
+        try {
+          def res = scanResolution(it)
+          def dpi = scanDPI(it)
+          def size = scanSize(it)
+          if (!res != null || !dpi != null || !size != null) {
+            println "[ImageChecker] OK $it"
           }
-
-          if (this.scanSize) {
-            if(((int)it.length() / 1000) > imageMaxSize) {
-              this.add(new SizeWarning(it, imageMaxSize, (int)(it.length()/1024)))
-            }
-          }
-
-          if (this.scanDPI) {
-            def metadata = Imaging.getImageInfo(it)
-            if(metadata != null && metadata.getPhysicalWidthDpi() != -1 && metadata.getPhysicalHeightDpi() != -1) {
-              if(minDPI > metadata.getPhysicalWidthDpi()) {
-                this.add(new DpiWarning(minDPI, metadata.getPhysicalWidthDpi(), it))
-              }
-            }
-          }
-          
         } catch (Exception ex) {
           ex.printStackTrace(System.out)
           this.add(new UnreadableWarning(ex, it))
-        } finally {
-          println "[ImageChecker] Checked $it"
         }
       }      
     }
@@ -147,6 +180,13 @@ class WarningsList extends ArrayList<WebsiteWarning> {
   @Override
   public String toString() {
     return this.join("\n")
+  }
+
+  def prettyPrint(biggestPath) {
+    this.each {
+      def padding = this.associatedPath.getAbsolutePath().length() - biggestPath
+
+    }
   }
 }
 
@@ -159,7 +199,7 @@ cli.dim(args:2, valueSeparator:'x', argName: 'maxdim', 'Check dimensions of imag
 cli.fail('fail on warnings')
 def options = cli.parse(args)
 
-if(options.help) {
+if(!options) {
   cli.usage()
 } else {
   def scanDir
@@ -171,20 +211,20 @@ if(options.help) {
   try {
 
     scanDir = options.target ?: "/home/jenkins/site/"
+    scanBoundsEnv = System.getenv("SCAN_BOUNDS") ?: "2000x2000"
 
-    scanBounds = options.dims ?: (System.getenv("SCAN_BOUNDS").split("x") ?: [2000,2000])
-    scanSize = options.size ?: System.getenv("SCAN_SIZE") ?: 500
-    scanDPI =  options.dpi ?: System.getenv("SCAN_DPI") ?: 0
+    assert scanBoundsEnv.split("x").size() == 2, "Range bound must be Width x Height. For example '-dim 1920x1080'"
+    scanBounds = options.dims ?: scanBoundsEnv.split("x")
 
-    println "===Options==="
-    println "Scan bounds: $scanBounds"
-    println "Scan size: $scanSize"
-    println "Scan dir: $scanDir"
-    println "Scan DPI: $scanDPI"
-    println "Fail on warnings ${options.fail}"
-    println "=============\n"
+    assert scanBounds.size() == 2, "Range value must be Width x Height. For example '-dim 1920x1080'"
+    assert scanBounds[0].isInteger(), "Width must be an integer"
+    assert scanBounds[1].isInteger(), "Height must be an integer"
 
-    assert scanBounds != null && scanBounds[0] as boolean && scanBounds[1] as boolean : "Image dimension must be specified with the -dim option"
+    scanSize = options.size ?: System.getenv("SCAN_SIZE") ?: "500"
+    assert scanSize.isInteger(), "File size must be a valid integer"
+
+    scanDPI =  options.dpi ?: System.getenv("SCAN_DPI") ?: "0"
+    assert scanDPI.isInteger(), "DPI specification must be an integer"
 
     warnings = new WarningsList(imageMaxSize: scanSize as int, maxImageWidth: scanBounds[0] as int, maxImageHeight: scanBounds[1] as int, minDPI: scanDPI as int)
     warnings.
@@ -200,7 +240,10 @@ if(options.help) {
     println "The file $scanDir cannot be found"
   } finally {
     if(warnings) {
-      println warnings.toString()
+      def maxLength = warnings.sort { it.associatedPath }.get(1).associatedPath.getAbsolutePath().length()
+      println warnings.sort{ it.class }.toString()
+    } else {
+      println "[ImageChecker] No warnings found"
     }
   }
 }
