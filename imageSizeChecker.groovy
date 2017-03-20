@@ -165,7 +165,7 @@ class WarningsList extends ArrayList<WebsiteWarning> {
           def res = scanResolution(it)
           def dpi = scanDPI(it)
           def size = scanSize(it)
-          if (!res != null || !dpi != null || !size != null) {
+          if (res == null && dpi == null && size == null) {
             println "[ImageChecker] OK $it"
           }
         } catch (Exception ex) {
@@ -240,7 +240,6 @@ if(!options) {
     println "The file $scanDir cannot be found"
   } finally {
     if(warnings) {
-      def maxLength = warnings.sort { it.associatedPath }.get(1).associatedPath.getAbsolutePath().length()
       println warnings.sort{ it.class }.toString()
     } else {
       println "[ImageChecker] No warnings found"
