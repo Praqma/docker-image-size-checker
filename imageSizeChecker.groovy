@@ -1,3 +1,5 @@
+#!/usr/bin/groovy
+
 @GrabResolver(name='imaging', root='https://repo.adobe.com/nexus/content/repositories/public/')
 @Grapes(
     @Grab(group='org.apache.commons', module='commons-imaging', version='1.0-R1534292')
@@ -49,7 +51,7 @@ public class UnreadableWarning extends WebsiteWarning {
   }
 
   public String toString() {
-    "[ImageChecker] (Error) Unable to read path $associatedPath message was ${ex.message}"
+    "[ImageChecker] Error Unable to read path $associatedPath message was ${ex.message}"
   }
 }
 
@@ -85,7 +87,7 @@ class DimensionWarning extends WebsiteWarning {
 
   @Override
   public String toString() {
-    def label = "Dimension".padRight(columnPadding);
+    def label = "Resolution".padRight(columnPadding);
     def result = "${x}x${y.toString()}".padLeft(columnPadding)
     def max = "max(${maxx}x${maxy})".padLeft(columnPadding)
     def spacing = "".padLeft(columnPadding)
@@ -123,7 +125,7 @@ class WarningsList extends ArrayList<WebsiteWarning> {
     if (this.scanBounds) {
       def img = ImageIO.read(file);
       if (img == null) {
-        println "[ImageChecker] (Warning) Unable to check $it.name"
+        println "[ImageChecker] Warning Unable to check $file.name"
       } else if ( img.getWidth() > maxImageWidth || img.getHeight() > maxImageHeight ){
         def warn = new DimensionWarning(img.getWidth(), img.getHeight(), maxImageWidth, maxImageHeight, file);
         this.add(warn)
@@ -169,7 +171,6 @@ class WarningsList extends ArrayList<WebsiteWarning> {
             println "[ImageChecker] OK $it"
           }
         } catch (Exception ex) {
-          ex.printStackTrace(System.out)
           this.add(new UnreadableWarning(ex, it))
         }
       }      
@@ -195,11 +196,13 @@ cli.help('print help message')
 cli.target(args:1, argName: 'targetFolder', 'Root folder to look for images')
 cli.size(args:1, argName: 'maxsize', 'Check file size of images in kb. Default: 500')
 cli.dpi(args:1, argName: 'mindpi', 'Check dpi of images. Default 0')
-cli.dim(args:2, valueSeparator:'x', argName: 'maxdim', 'Check dimensions of image "widthxheight" for example 1920x1080. Default: 2000x2000')
+cli.res(args:2, valueSeparator:'x', argName: 'maxres', 'Check dimensions of image "widthxheight" for example 1920x1080. Default: 2000x2000')
 cli.fail('fail on warnings')
 def options = cli.parse(args)
 
 if(!options) {
+  cli.usage()
+} else if(options.help) {
   cli.usage()
 } else {
   def scanDir
@@ -214,7 +217,7 @@ if(!options) {
     scanBoundsEnv = System.getenv("SCAN_BOUNDS") ?: "2000x2000"
 
     assert scanBoundsEnv.split("x").size() == 2, "Range bound must be Width x Height. For example '-dim 1920x1080'"
-    scanBounds = options.dims ?: scanBoundsEnv.split("x")
+    scanBounds = options.ress ?: scanBoundsEnv.split("x")
 
     assert scanBounds.size() == 2, "Range value must be Width x Height. For example '-dim 1920x1080'"
     assert scanBounds[0].isInteger(), "Width must be an integer"
