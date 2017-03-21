@@ -90,9 +90,9 @@ Fail if warnings exists.
 When you run with the `-fail` switch
 
 	[ImageChecker] WARNING  Size                       434 kB      max(100 kB)                 /tmp/site/images/main-banner-mastering-git.png
-Caught: java.lang.RuntimeException: Warnings detected. We found 222 warning(s)
-java.lang.RuntimeException: Warnings detected. We found 222 warning(s)
-	at imageSizeChecker.run(imageSizeChecker.groovy:240)
+	Caught: java.lang.RuntimeException: Warnings detected. We found 222 warning(s)
+	java.lang.RuntimeException: Warnings detected. We found 222 warning(s)
+		at imageSizeChecker.run(imageSizeChecker.groovy:240)
 
 Do not fret that this is listed as an exeception, it's the safest way to exit nonzero with groovy, since using System.exit(...) can be unsafe inside a running VM.
 
