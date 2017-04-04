@@ -20,11 +20,11 @@ Showing help.
 
 Checking no image greater than 100kb and no greater resolution than 1920x1080 (Full HD) in folder `/tmp/site`.
 
-	groovy imageSizeChecker.groovy -res 1920x1080 -target /tmp/site -size 100
+	groovy imageSizeChecker.groovy --resolution=1920x1080 --target=/tmp/site --filesize=100
 
 Fail if warnings exists. 
 	
-	groovy imageSizeChecker.groovy -res 1920x1080 -target /tmp/site -size 100 -fail
+	groovy imageSizeChecker.groovy ---resolution=1920x1080 --target=/tmp/site --filesize=100 --fail
 
 ## Example output
 
@@ -87,7 +87,7 @@ Fail if warnings exists.
 	[ImageChecker] WARNING  Size                      1733 kB      max(100 kB)                 /tmp/site/images/people/carmosin.png
 	[ImageChecker] WARNING  Size                      1046 kB      max(100 kB)                 /tmp/site/images/people/ewelinawilkosz2.png
 
-When you run with the `-fail` switch
+When you run with the `--fail` switch
 
 	[ImageChecker] WARNING  Size                       434 kB      max(100 kB)                 /tmp/site/images/main-banner-mastering-git.png
 	Caught: java.lang.RuntimeException: Warnings detected. We found 222 warning(s)
