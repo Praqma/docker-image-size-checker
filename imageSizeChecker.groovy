@@ -192,17 +192,17 @@ class WarningsList extends ArrayList<WebsiteWarning> {
 }
 
 def cli = new CliBuilder(usage: 'imageSizeChecker [options]', header:'Options:')
-cli.help('print help message')
-cli.target(args:1, argName: 'targetFolder', 'Root folder to look for images')
-cli.size(args:1, argName: 'maxsize', 'Check file size of images in kb. Default: 500')
-cli.dpi(args:1, argName: 'mindpi', 'Check dpi of images. Default 0')
-cli.res(args:2, valueSeparator:'x', argName: 'maxres', 'Check dimensions of image "widthxheight" for example 1920x1080. Default: 2000x2000')
-cli.fail('fail on warnings')
+cli.h(longOpt: 'help', 'print help message')
+cli.t(longOpt: 'target', args:1, argName: 'targetFolder', 'Root folder to look for images')
+cli.s(longOpt: 'filesize', args:1, argName: 'maxsize', 'Check file size of images in kb. Default: 0')
+cli.d(longOpt: 'dpi', args:1, argName: 'mindpi', 'Check dpi of images. Default 0')
+cli.r(longOpt: 'resolution', args:2, valueSeparator:'x', argName: 'maxres', 'Check dimensions of image "widthxheight" for example 1920x1080. Default: 1920x1080')
+cli.f(longOpt: 'fail', 'fail on warnings')
 def options = cli.parse(args)
 
 if(!options) {
   cli.usage()
-} else if(options.help) {
+} else if(options.help || options.h) {
   cli.usage()
 } else {
   def scanDir
@@ -214,28 +214,34 @@ if(!options) {
   try {
 
     scanDir = options.target ?: "/home/jenkins/site/"
-    scanBoundsEnv = System.getenv("SCAN_BOUNDS") ?: "2000x2000"
+    scanBoundsEnv = System.getenv("SCAN_BOUNDS") ?: "1920x1080"
 
-    assert scanBoundsEnv.split("x").size() == 2, "Range bound must be Width x Height. For example '-dim 1920x1080'"
-    scanBounds = options.ress ?: scanBoundsEnv.split("x")
+    assert scanBoundsEnv.split("x").size() == 2, "Range bound must be Width x Height. For example '--resolution=1920x1080'"
+    scanBounds = options.rs ?: scanBoundsEnv.split("x")
+    scanBounds = options.resolutions ?: scanBounds
 
-    assert scanBounds.size() == 2, "Range value must be Width x Height. For example '-dim 1920x1080'"
+    assert scanBounds.size() == 2, "Range value must be Width x Height. For example '--resolution=1920x1080'"
     assert scanBounds[0].isInteger(), "Width must be an integer"
     assert scanBounds[1].isInteger(), "Height must be an integer"
 
-    scanSize = options.size ?: System.getenv("SCAN_SIZE") ?: "500"
-    assert scanSize.isInteger(), "File size must be a valid integer"
+    scanSize = options.s ?: 0  
+    scanSize = options.filesize ?: scanSize
 
-    scanDPI =  options.dpi ?: System.getenv("SCAN_DPI") ?: "0"
-    assert scanDPI.isInteger(), "DPI specification must be an integer"
+    scanDPI = options.d ?: 0
+    scanDPI = options.dpi ?: scanDPI
+
+    println "Max resolution : $scanBounds"
+    println "Max file size  : $scanSize kb"
+    println "Min DPI:       : $scanDPI" 
+    println "Fail on warning: ${options.fail || options.f}"
 
     warnings = new WarningsList(imageMaxSize: scanSize as int, maxImageWidth: scanBounds[0] as int, maxImageHeight: scanBounds[1] as int, minDPI: scanDPI as int)
     warnings.
             setScanBounds(scanBounds as boolean).
-            setScanSize(options.size as boolean).
-            setScanDPI(options.dpi as boolean).scan(scanDir)
+            setScanSize(scanSize.toInteger() != 0).
+            setScanDPI(scanDPI.toInteger() != 0).scan(scanDir)
 
-    if(options.fail) {
+    if(options.fail || options.f) {
       //We do NOT want to to use System.exit(...) because it can be used to shut down a VM....for example a Jenkins VM or slave service
       throw new RuntimeException("Warnings detected. We found ${warnings.size()} warning(s)")
     }
