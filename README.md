@@ -103,7 +103,7 @@ We've included a dockerfile from which you can create your own image with `docke
 
 As an example, we can do the following if we built the image `praqma/image-file-check`
 
-	docker run --rm -v /home/myuser/mysite:/tmp/site praqma/image-file-check imagecheck -res 1929x1080 -target /tmp/site -size 100 -fail
+	docker run --rm -v /home/myuser/mysite:/tmp/site praqma/image-file-check imagecheck --resolution=1929x1080 --target=/tmp/site -size 100 --fail
 
 	
 
