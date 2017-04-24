@@ -13,7 +13,7 @@ Groovy script to check various attributes of images, all of which determine the 
 
 ## How to contribute
 
-It's very easy to contribute. See the [Contributing](CONTRIBUTING.md). If you have questions. Feel free to send your questions to support@praqma.net.  
+It's very easy to contribute. See the [Contributing](CONTRIBUTING.md) section. If you have questions. Feel free to send your questions to support@praqma.net.  
 
 ## How to use
 
