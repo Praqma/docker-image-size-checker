@@ -1,6 +1,7 @@
 ---
 Maintainer:
 - MadsNielsen
+Stable: true
 ---
 
 # image-size-checker
@@ -10,12 +11,15 @@ Groovy script to check various attributes of images, all of which determine the 
 * Min DPI for the image (useful if it is for print)
 * Resolution of image
 
+## How to contribute
 
-## Running the script
+It's very easy to contribute. See the [Contributing](CONTRIBUTING.md). If you have questions. Feel free to send your questions to support@praqma.net.  
+
+## How to use
 
 Showing help.
 
-	groovy imageSizeChecker.groovy -help
+	groovy imageSizeChecker.groovy --help
 
 
 Checking no image greater than 100kb and no greater resolution than 1920x1080 (Full HD) in folder `/tmp/site`.
@@ -26,7 +30,7 @@ Fail if warnings exists.
 	
 	groovy imageSizeChecker.groovy ---resolution=1920x1080 --target=/tmp/site --filesize=100 --fail
 
-## Example output
+### Example output
 
 	[ImageChecker] WARNING  Resolution              1772x1535   max(1080x1929)                 /tmp/site/images/customers/philips.jpg
 	[ImageChecker] WARNING  Resolution               1242x800   max(1080x1929)                 /tmp/site/images/people/jovirt.png
@@ -104,6 +108,11 @@ We've included a dockerfile from which you can create your own image with `docke
 As an example, we can do the following if we built the image `praqma/image-file-check`
 
 	docker run --rm -v /home/myuser/mysite:/tmp/site praqma/image-file-check imagecheck --resolution=1929x1080 --target=/tmp/site -filesize=100 --fail
+
+
+## Need help?
+
+Any and all questions about this tool can be sent to support@praqma.net 
 
 	
 
