@@ -1,0 +1,37 @@
+{
+	"tiny" : {
+		"regex": "(.*tiny[^-]*?)-?([0-9]+x[0-9]+).(.*)",
+		"width": 324,
+		"height": "none"	
+	}, 
+	"small": {
+		"regex": "(.*small[^-]*?)-?([0-9]+x[0-9]+).(.*)",
+		"width": 113,
+		"height": "none"		
+	},
+	"medium": {
+		"regex": "(.*medium[^-]*?)-?([0-9]+x[0-9]+).(.*)",
+		"width": 576,
+		"height": "none"
+	},
+	"large": {
+		"regex": "(.*large[^-]*?)-?([0-9]+x[0-9]+).(.*)",
+		"width": 768,
+		"height": "none"
+	},
+	"fullframe": {
+		"regex": "(.*fullframe[^-]*?)-?([0-9]+x[0-9]+).(.*)",
+		"width": 768,
+		"height": "none"
+	},
+	"oversize": {
+		"regex": "(.*oversize[^-]*?)-?([0-9]+x[0-9]+).(.*)",
+		"width": 1280,
+		"height": "none"
+	},
+	"fullwidth": {
+		"regex": "(.*fullwidth[^-]*?)-?([0-9]+x[0-9]+).(.*)",
+		"width": 3840,
+		"height": "none"	
+	}
+}

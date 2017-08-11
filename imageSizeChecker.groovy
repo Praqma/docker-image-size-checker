@@ -18,7 +18,7 @@ public class WebsiteWarning {
   }
 
   public String toString() {
-    "[ImageChecker] WARNING "
+    "[ImageChecker] WARNING"
   }
 }
 
@@ -34,11 +34,10 @@ public class SizeWarning extends WebsiteWarning {
 
   @Override
   public String toString() {
-    def label = "Size".padRight(columnPadding);
-    def result = "${sizeRecorded} kB".padLeft(columnPadding)
-    def max = "max(${maxImageSize} kB)".padLeft(columnPadding)
+    def label = "Size"
+    def result = "${sizeRecorded}kB"
     def spacing = "".padLeft(columnPadding)
-    return "${super.toString()} $label ${result} $max$spacing $associatedPath" //Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
+    return "${super.toString()} $label ${result} $associatedPath" //Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
   }
 }
 
@@ -51,7 +50,7 @@ public class UnreadableWarning extends WebsiteWarning {
   }
 
   public String toString() {
-    "[ImageChecker] Error Unable to read path $associatedPath message was ${ex.message}"
+    "[ImageChecker] ERROR Unable to read path $associatedPath message was ${ex.message}"
   }
 }
 
@@ -77,7 +76,7 @@ public class DpiWarning extends WebsiteWarning {
 class DimensionWarning extends WebsiteWarning {
   def y,x,maxy,maxx
 
-  public DimensionWarning(def y, def x, def maxy, def maxx, def associatedPath) {
+  public DimensionWarning(def x, def y, def maxx, def maxy, def associatedPath) {
     super(associatedPath)
     this.y = y
     this.x = x
@@ -87,56 +86,79 @@ class DimensionWarning extends WebsiteWarning {
 
   @Override
   public String toString() {
-    def label = "Resolution".padRight(columnPadding);
-    def result = "${x}x${y.toString()}".padLeft(columnPadding)
-    def max = "max(${maxx}x${maxy})".padLeft(columnPadding)
+    def label = "Resolution"
+    def result = "${x}x${y.toString()}"
     def spacing = "".padLeft(columnPadding)
-    return "${super.toString()} $label ${result} $max$spacing $associatedPath" //Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
+    return "${super.toString()} $label ${result} $associatedPath" //Max image size is ${maxImageSize} kb. Was $sizeRecorded kb"
   }
 }
 
 class WarningsList extends ArrayList<WebsiteWarning> {
 
-  int imageMaxSize
-  int maxImageWidth
-  int maxImageHeight
-  int minDPI
+  def imageMaxSize
+  def maxImageWidth 
+  def maxImageHeight
+  def minDPI
+  def scanSize
+  def imagecfg
 
-  boolean scanBounds = true
-  boolean scanSize = false
-  boolean scanDPI = false
-
-  def setScanDPI(def scanDPI = true) {
-    this.scanDPI = scanDPI
-    return this
+  def checkDimensions(file, maxWidth, maxHeight) {
+    def img = ImageIO.read(file);
+    if(img == null) {
+      return null
+    }
+    if (img.getWidth() > maxWidth || img.getHeight() > maxHeight) {
+      def warn = new DimensionWarning(img.getWidth(), img.getHeight(), maxImageWidth, maxImageHeight, file);
+      return warn
+    }   
   }
 
-  def setScanSize(def scanSize = true) {
-    this.scanSize = scanSize
-    return this
+  def checkExactDimensions(file, width, height) {
+    def img = ImageIO.read(file);
+    if(img == null) {
+      return null
+    }
+    if (img.getWidth() != width || (height != "none" && img.getHeight() != (int)height)) {
+      def warn = new DimensionWarning(img.getWidth(), img.getHeight(), maxImageWidth, maxImageHeight, file);
+      return warn
+    }   
   }
 
-  def setScanBounds(def scanBounds = true) {
-    this.scanBounds = scanBounds
-    return this
-  }
-
-  def scanResolution(file) {
-    if (this.scanBounds) {
-      def img = ImageIO.read(file);
-      if (img == null) {
-        println "[ImageChecker] Warning Unable to check $file.name"
-      } else if ( img.getWidth() > maxImageWidth || img.getHeight() > maxImageHeight ){
-        def warn = new DimensionWarning(img.getWidth(), img.getHeight(), maxImageWidth, maxImageHeight, file);
-        this.add(warn)
-        return warn
+  def scanResolution(file, config) {
+    if(config || maxImageWidth.toString().isInteger() || maxImageHeight.toString().isInteger() ) {
+      if (config) { //If the dynamic resolution rule is defined we check exact matches
+        config.each { k,v ->
+          def matcher = (file =~ v.regex)
+          if(matcher.getCount() > 0) {
+            //if the match included the Scale modifier
+            //I.e 4x2 In this case the height must be 2/4 ~1/2 of the width
+            def scaledHeight = v.width   
+            if(matcher[0][2]) {
+              def op1 = matcher[0][2].split("x")[0].toInteger()
+              def op2 = matcher[0][2].split("x")[1].toInteger()
+              //Remove everything after the decimal
+              scaledHeight = (v.width.toInteger() / op1 * op2).toInteger() 
+            }
+            def warn = checkExactDimensions(file, v.width.toInteger(), scaledHeight)
+            if(warn) {
+              this.add(warn)
+              return warn
+            }
+          }  
+        } 
+      } else {
+        def warn = checkDimensions(file, maxImageWidth.toInteger(), maxImageHeight.toInteger())
+        if(warn){
+          this.add(warn)
+          return warn
+        }
       }
     }
     return null
   }
 
   def scanDPI(file) {
-    if (this.scanDPI) {
+    if (minDPI) {
       def metadata = Imaging.getImageInfo(file)
       if(metadata != null && metadata.getPhysicalWidthDpi() != -1 && metadata.getPhysicalHeightDpi() != -1) {
         if(minDPI > metadata.getPhysicalWidthDpi()) {
@@ -150,9 +172,9 @@ class WarningsList extends ArrayList<WebsiteWarning> {
   }
 
   def scanSize(file) {
-    if (this.scanSize) {
-      if(((int)file.length() / 1000) > imageMaxSize) {
-        def warn = new SizeWarning(file, imageMaxSize, (int)(file.length()/1024))
+    if(imageMaxSize) {
+      if(((int)file.length() / 1000) > (imageMaxSize as int)) {
+        def warn = new SizeWarning(file, imageMaxSize as int, (int)(file.length()/1024))
         this.add(warn)
         return warn
       }
@@ -161,17 +183,24 @@ class WarningsList extends ArrayList<WebsiteWarning> {
   }
 
   def scan(def rootPath) {
+    println imagecfg
+    def config
+    if(imagecfg) {
+      config = new groovy.json.JsonSlurper().parse(new File(imagecfg)) 
+    }
     new File(rootPath).eachFileRecurse(FILES) {
       if( it.name ==~ /([^\s]+(\.(?i)(jpg|png|gif|bmp))$)/ ) {
         try {
-          def res = scanResolution(it)
+          def res = scanResolution(it, config)
           def dpi = scanDPI(it)
           def size = scanSize(it)
           if (res == null && dpi == null && size == null) {
             println "[ImageChecker] OK $it"
           }
         } catch (Exception ex) {
+
           this.add(new UnreadableWarning(ex, it))
+          throw ex
         }
       }      
     }
@@ -182,13 +211,6 @@ class WarningsList extends ArrayList<WebsiteWarning> {
   public String toString() {
     return this.join("\n")
   }
-
-  def prettyPrint(biggestPath) {
-    this.each {
-      def padding = this.associatedPath.getAbsolutePath().length() - biggestPath
-
-    }
-  }
 }
 
 def cli = new CliBuilder(usage: 'imageSizeChecker [options]', header:'Options:')
@@ -196,55 +218,34 @@ cli.h(longOpt: 'help', 'print help message')
 cli.t(longOpt: 'target', args:1, argName: 'targetFolder', 'Root folder to look for images')
 cli.s(longOpt: 'filesize', args:1, argName: 'maxsize', 'Check file size of images in kb. Default: 0')
 cli.d(longOpt: 'dpi', args:1, argName: 'mindpi', 'Check dpi of images. Default 0')
-cli.r(longOpt: 'resolution', args:2, valueSeparator:'x', argName: 'maxres', 'Check dimensions of image "widthxheight" for example 1920x1080. Default: 1920x1080')
+cli.x(longOpt: 'maxwidth', args:1, argName: 'maxwidth', 'Max image width, for example: 1920 (always in pixels)')
+cli.y(longOpt: 'maxheight', args:1, argName: 'maxheight', 'Max image width, for example: 1080 (always in pixels)')
+cli.c(longOpt: 'imageconfig', args:1, argName: 'config', 'Use a defined set of rules based on image name to have dynamic per-picture max limits')
 cli.f(longOpt: 'fail', 'fail on warnings')
 def options = cli.parse(args)
 
 if(!options) {
   cli.usage()
-} else if(options.help || options.h) {
+} else if(options.h) {
   cli.usage()
 } else {
-  def scanDir
-  def scanBounds
-  def scanSize
-  def scanDPI
-  def warnings
-
   try {
 
     scanDir = options.target ?: "/home/jenkins/site/"
-    scanBoundsEnv = System.getenv("SCAN_BOUNDS") ?: "1920x1080"
 
-    assert scanBoundsEnv.split("x").size() == 2, "Range bound must be Width x Height. For example '--resolution=1920x1080'"
-    scanBounds = options.rs ?: scanBoundsEnv.split("x")
-    scanBounds = options.resolutions ?: scanBounds
+    println "Max file size     : ${options.s ? options.s : 0} kb"
+    println "Image resolution  : ${options.c ? "Specified by ${options.c}" : "${options.x}x${options.y}"}"
+    println "Min DPI:          : ${options.dpi}" 
+    println "Fail on warning   : ${options.f}"
 
-    assert scanBounds.size() == 2, "Range value must be Width x Height. For example '--resolution=1920x1080'"
-    assert scanBounds[0].isInteger(), "Width must be an integer"
-    assert scanBounds[1].isInteger(), "Height must be an integer"
-
-    scanSize = options.s ?: 0  
-    scanSize = options.filesize ?: scanSize
-
-    scanDPI = options.d ?: 0
-    scanDPI = options.dpi ?: scanDPI
-
-    println "Max resolution : $scanBounds"
-    println "Max file size  : $scanSize kb"
-    println "Min DPI:       : $scanDPI" 
-    println "Fail on warning: ${options.fail || options.f}"
-
-    warnings = new WarningsList(imageMaxSize: scanSize as int, maxImageWidth: scanBounds[0] as int, maxImageHeight: scanBounds[1] as int, minDPI: scanDPI as int)
-    warnings.
-            setScanBounds(scanBounds as boolean).
-            setScanSize(scanSize.toInteger() != 0).
-            setScanDPI(scanDPI.toInteger() != 0).scan(scanDir)
-
-    if(options.fail || options.f) {
-      //We do NOT want to to use System.exit(...) because it can be used to shut down a VM....for example a Jenkins VM or slave service
-      throw new RuntimeException("Warnings detected. We found ${warnings.size()} warning(s)")
-    }
+    warnings = new WarningsList(
+      imagecfg: options.c, 
+      imageMaxSize: options.s, 
+      maxImageWidth: options.x, 
+      maxImageHeight: options.y,
+      minDPI: options.d
+    )
+    warnings.scan(scanDir)
   } catch (FileNotFoundException ex) {
     println "The file $scanDir cannot be found"
   } finally {
